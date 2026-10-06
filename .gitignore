@@ -1,0 +1,21 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+
+# Backups de escudos originais
+src/img/_originais/
+
+# Arquivos de tarefas dos agentes
+.agents/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
