@@ -49,6 +49,8 @@ Um jogo diário estilo Wordle para adivinhar clubes do futebol brasileiro pelo e
 - **Confetes** na vitória 🎉
 - **Ambientação de estádio** — fundo temático de futebol (gramado em perspectiva, arquibancada, refletores e bolas flutuando nos cantos), tudo em CSS puro, sem imagens externas
 - **Aba "Times"** — lista todos os clubes disponíveis agrupados por região e estado, com o ano de fundação de cada um
+- **Dois modos de jogo** — 📅 Diário (um desafio por dia, igual para todos, vale a sequência) e 🎲 Treino (jogue quantas vezes quiser com times aleatórios; não afeta a sequência)
+- **Entrada tolerante** — não precisa acertar o nome exato: ignora acentos e maiúsculas ("gremio" = "Grêmio"), aceita apelidos ("oeste" para "Osasco Sporting") e sugere "Você quis dizer?" quando há erro de digitação
 - **Responsivo** — funciona bem em mobile e desktop
 - **Dark mode** por padrão
 

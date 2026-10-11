@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { TIMES } from './data/times';
 import './App.css';
@@ -13,12 +13,19 @@ const LS_JOGADOS     = 'futrle_jogados';
 
 /**
  * Retorna o time do dia usando a data atual como seed.
- * Todo mundo vê o mesmo time no mesmo dia.
+ * Todo mundo vê o mesmo time no mesmo dia (modo diário).
  */
 function getTimeDoDia() {
   const hoje = new Date();
   const seed  = hoje.getFullYear() * 10000 + (hoje.getMonth() + 1) * 100 + hoje.getDate();
   return TIMES[seed % TIMES.length];
+}
+
+/**
+ * Sorteia um time aleatório (modo treino).
+ */
+function getTimeAleatorio() {
+  return TIMES[Math.floor(Math.random() * TIMES.length)];
 }
 
 /**
@@ -35,9 +42,91 @@ function compararCores(coresChute, coresDia) {
   return 'wrong';
 }
 
+/**
+ * Normaliza texto para comparação tolerante:
+ * - remove acentos (gremio = Grêmio)
+ * - minúsculas
+ * - remove tudo que não é letra/número (hífens, parênteses, espaços, pontos)
+ * Ex: "Osasco Sporting (Oeste)" → "osascosportingoeste"
+ */
+function normalizar(txt) {
+  return txt
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // tira acentos
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');      // só letras e números
+}
+
+/**
+ * Distância de Levenshtein (quantas edições para transformar a em b).
+ * Usada para o "Você quis dizer?" quando o chute tem erro de digitação.
+ */
+function distancia(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  let linhaAnterior = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    const linhaAtual = [i];
+    for (let j = 1; j <= n; j++) {
+      const custo = a[i - 1] === b[j - 1] ? 0 : 1;
+      linhaAtual[j] = Math.min(
+        linhaAnterior[j] + 1,      // remoção
+        linhaAtual[j - 1] + 1,     // inserção
+        linhaAnterior[j - 1] + custo // substituição
+      );
+    }
+    linhaAnterior = linhaAtual;
+  }
+  return linhaAnterior[n];
+}
+
+/**
+ * Procura o time correspondente a um texto digitado, de forma tolerante.
+ * Retorna { tipo, time }:
+ *   tipo 'exato'    → bateu exatamente (após normalizar nome ou apelido)
+ *   tipo 'sugestao' → não bateu, mas há um candidato próximo (typo)
+ *   tipo 'nenhum'   → nada parecido
+ */
+function buscarTime(texto) {
+  const alvo = normalizar(texto);
+  if (!alvo) return { tipo: 'nenhum', time: null };
+
+  // 1) Correspondência exata por nome OU apelido (ignorando acento/caixa/pontuação)
+  for (const t of TIMES) {
+    if (normalizar(t.nome) === alvo) return { tipo: 'exato', time: t };
+    if (t.apelidos && t.apelidos.some(ap => normalizar(ap) === alvo)) {
+      return { tipo: 'exato', time: t };
+    }
+  }
+
+  // 2) Melhor candidato por distância de edição (para erros de digitação)
+  let melhor = null;
+  let melhorDist = Infinity;
+  for (const t of TIMES) {
+    const candidatos = [t.nome, ...(t.apelidos || [])];
+    for (const cand of candidatos) {
+      const d = distancia(alvo, normalizar(cand));
+      if (d < melhorDist) { melhorDist = d; melhor = t; }
+    }
+  }
+
+  // Tolera erro proporcional ao tamanho do texto (até ~40% de diferença, no mínimo 2).
+  const limite = Math.max(2, Math.floor(alvo.length * 0.4));
+  if (melhor && melhorDist <= limite) return { tipo: 'sugestao', time: melhor };
+
+  return { tipo: 'nenhum', time: null };
+}
+
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 export default function App() {
-  const timeDoDia = getTimeDoDia(); // estável: mesmo valor durante a sessão do dia
+  // Modo de jogo: 'diario' (1 por dia, vale streak) ou 'treino' (ilimitado, sem streak)
+  const [modo,            setModo]            = useState('diario');
+  // Alvo do treino (sorteado); no diário usamos getTimeDoDia()
+  const [timeTreino,      setTimeTreino]      = useState(() => getTimeAleatorio());
+
+  // O alvo atual depende do modo
+  const timeDoDia = modo === 'diario' ? getTimeDoDia() : timeTreino;
 
   const [chutes,          setChutes]          = useState([]);
   const [input,           setInput]           = useState('');
@@ -47,13 +136,12 @@ export default function App() {
   const [imgErro,         setImgErro]         = useState(false);  // fallback se escudo não carregar
   const [toast,           setToast]           = useState(null);   // { msg, tipo }
   const [shake,           setShake]           = useState(false);  // shake no input
+  const [sugestao,        setSugestao]        = useState(null);   // "Você quis dizer: X?"
   const [streak,          setStreak]          = useState(() => Number(localStorage.getItem(LS_STREAK)  || 0));
   const [maxStreak,       setMaxStreak]       = useState(() => Number(localStorage.getItem(LS_MAX_STREAK) || 0));
   const [jogados,         setJogados]         = useState(() => Number(localStorage.getItem(LS_JOGADOS) || 0));
-  const [novaPartida,     setNovaPartida]     = useState(false);  // flag para reset visual
   const [verLista,        setVerLista]        = useState(false);  // aba "Times disponíveis"
 
-  const imgRef      = useRef(null);
   const toastTimer  = useRef(null);
 
   // ── Toast ──────────────────────────────────────────────────────────────────
@@ -93,40 +181,57 @@ export default function App() {
     }
   }, [jogados, streak, maxStreak]);
 
-  // ── Reset visual do escudo ao iniciar nova partida ─────────────────────────
-  useEffect(() => {
-    if (novaPartida) {
-      if (imgRef.current) imgRef.current.src = '';
-      setImgCarregada(false);
-      setImgErro(false);
-      setNovaPartida(false);
-    }
-  }, [novaPartida]);
-
-  // ── Novo Jogo (reservado para uso futuro) ─────────────────────────────────
-  // eslint-disable-next-line no-unused-vars
-  const novoJogo = useCallback(() => {
-    if (imgRef.current) imgRef.current.src = '';
+  // ── Reinicia a partida (limpa o tabuleiro) ────────────────────────────────
+  // A imagem do escudo é remontada pelo React via `key={timeDoDia.nome}` na <img>,
+  // então NÃO mexemos no src manualmente (isso causava corrida e escudo sumindo).
+  const reiniciarPartida = useCallback(() => {
     setImgCarregada(false);
+    setImgErro(false);
     setChutes([]);
     setInput('');
+    setSugestao(null);
     setJogoFinalizado(false);
     setVenceu(false);
-    setNovaPartida(true);
   }, []);
 
+  // ── Modo TREINO: nova partida com time aleatório ──────────────────────────
+  const novoTreino = useCallback(() => {
+    setTimeTreino(getTimeAleatorio());
+    reiniciarPartida();
+  }, [reiniciarPartida]);
+
+  // ── Troca de modo (diário ⇄ treino) ───────────────────────────────────────
+  const trocarModo = useCallback((novoModo) => {
+    if (novoModo === modo) return;
+    setModo(novoModo);
+    if (novoModo === 'treino') setTimeTreino(getTimeAleatorio());
+    reiniciarPartida();
+  }, [modo, reiniciarPartida]);
+
   // ── Chutar ─────────────────────────────────────────────────────────────────
-  const handleChutar = useCallback(() => {
-    const timeChutado = TIMES.find(
-      t => t.nome.toLowerCase() === input.trim().toLowerCase()
-    );
+  // Recebe opcionalmente um time já resolvido (quando o usuário confirma a sugestão).
+  const handleChutar = useCallback((timeConfirmado = null) => {
+    let timeChutado = timeConfirmado;
 
     if (!timeChutado) {
-      setShake(true);
-      setTimeout(() => setShake(false), 500);
-      showToast('Escolha um time válido da lista!');
-      return;
+      const r = buscarTime(input);
+      if (r.tipo === 'exato') {
+        timeChutado = r.time;
+      } else if (r.tipo === 'sugestao') {
+        // Não bateu exato, mas há um candidato próximo: oferece "Você quis dizer?"
+        setSugestao(r.time);
+        setShake(true);
+        setTimeout(() => setShake(false), 500);
+        return;
+      } else {
+        setShake(true);
+        setTimeout(() => setShake(false), 500);
+        showToast('Nenhum time encontrado com esse nome!');
+        return;
+      }
     }
+
+    setSugestao(null);
 
     if (chutes.some(c => c.nome === timeChutado.nome)) {
       setShake(true);
@@ -157,16 +262,18 @@ export default function App() {
     setChutes(novosChutes);
     setInput('');
 
-    if (timeChutado.nome === timeDoDia.nome) {
+    const acertou = timeChutado.nome === timeDoDia.nome;
+    if (acertou) {
       setJogoFinalizado(true);
       setVenceu(true);
-      atualizarEstatisticas(true);
+      // Streak e estatísticas contam APENAS no modo diário.
+      if (modo === 'diario') atualizarEstatisticas(true);
       dispararConfetes();
     } else if (novosChutes.length >= MAX_TENTATIVAS) {
       setJogoFinalizado(true);
-      atualizarEstatisticas(false);
+      if (modo === 'diario') atualizarEstatisticas(false);
     }
-  }, [input, chutes, timeDoDia, showToast, dispararConfetes, atualizarEstatisticas]);
+  }, [input, chutes, timeDoDia, modo, showToast, dispararConfetes, atualizarEstatisticas]);
 
   const handleKeyDown = (e) => { if (e.key === 'Enter') handleChutar(); };
 
@@ -255,7 +362,9 @@ export default function App() {
               ? venceu
                 ? `🎯 GOLAÇO! Em ${chutes.length}/${MAX_TENTATIVAS}!`
                 : `❌ Era o ${timeDoDia?.nome}`
-              : 'Adivinhe o clube pelo escudo'}
+              : modo === 'treino'
+                ? '🎲 Modo treino — adivinhe o clube'
+                : 'Adivinhe o clube pelo escudo'}
           </p>
 
           {/* ABAS: Jogo | Times disponíveis */}
@@ -273,6 +382,26 @@ export default function App() {
               📋 Times ({TIMES.length})
             </button>
           </div>
+
+          {/* SELETOR DE MODO (só na aba Jogo) */}
+          {!verLista && (
+            <div className="modo-seletor">
+              <button
+                className={`modo-btn${modo === 'diario' ? ' modo-btn--ativo' : ''}`}
+                onClick={() => trocarModo('diario')}
+                title="Um desafio por dia, igual para todos — vale a sequência"
+              >
+                📅 Diário
+              </button>
+              <button
+                className={`modo-btn${modo === 'treino' ? ' modo-btn--ativo' : ''}`}
+                onClick={() => trocarModo('treino')}
+                title="Jogue quantas vezes quiser com times aleatórios"
+              >
+                🎲 Treino
+              </button>
+            </div>
+          )}
         </header>
 
         {/* ─── ABA: TIMES DISPONÍVEIS ─── */}
@@ -335,7 +464,12 @@ export default function App() {
             </div>
           ) : (
             <img
-              ref={imgRef}
+              key={timeDoDia.nome}
+              ref={(el) => {
+                // Se a imagem já veio do cache, 'complete' é true na montagem e o
+                // onLoad pode não disparar — então marcamos como carregada aqui.
+                if (el && el.complete && el.naturalWidth > 0) setImgCarregada(true);
+              }}
               src={timeDoDia.escudo}
               alt="Escudo do time"
               className={[
@@ -377,13 +511,32 @@ export default function App() {
                 <option key={t.nome} value={t.nome} />
               ))}
             </datalist>
-            <button className="btn-chutar" onClick={handleChutar}>
+            <button className="btn-chutar" onClick={() => handleChutar()}>
               CHUTAR
             </button>
           </div>
         )}
 
-        {/* BOTÃO NOVO JOGO — removido: jogo é uma vez por dia */}
+        {/* VOCÊ QUIS DIZER? (sugestão para erro de digitação) */}
+        {!jogoFinalizado && sugestao && (
+          <div className="sugestao">
+            <span>Você quis dizer</span>
+            <button
+              className="sugestao-btn"
+              onClick={() => handleChutar(sugestao)}
+            >
+              {sugestao.nome}
+            </button>
+            <span>?</span>
+            <button
+              className="sugestao-fechar"
+              onClick={() => setSugestao(null)}
+              aria-label="Dispensar sugestão"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* LABELS */}
         <div className="stats-labels">
@@ -440,12 +593,18 @@ export default function App() {
 
       </div>
 
-      {/* BOTÃO COMPARTILHAR */}
+      {/* AÇÕES AO FINALIZAR */}
       {!verLista && jogoFinalizado && (
         <div className="footer-actions">
-          <button className="btn-compartilhar" onClick={compartilhar}>
-            Compartilhar Resultado 📲
-          </button>
+          {modo === 'treino' ? (
+            <button className="btn-compartilhar" onClick={novoTreino}>
+              🎲 Jogar outro
+            </button>
+          ) : (
+            <button className="btn-compartilhar" onClick={compartilhar}>
+              Compartilhar Resultado 📲
+            </button>
+          )}
         </div>
       )}
     </div>

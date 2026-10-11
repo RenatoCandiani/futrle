@@ -577,6 +577,77 @@ body {
   border-color: var(--orange);
 }
 
+/* ─── SELETOR DE MODO (Diário | Treino) ────────────────────────────────────── */
+.modo-seletor {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.modo-btn {
+  padding: 6px 16px;
+  background: transparent;
+  border: 1px solid #2e2e30;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.modo-btn:hover { color: var(--text); }
+
+.modo-btn--ativo {
+  background: #252527;
+  color: var(--green);
+  border-color: var(--green);
+}
+
+/* ─── VOCÊ QUIS DIZER? ──────────────────────────────────────────────────────── */
+.sugestao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin: -6px 0 16px;
+  padding: 10px 14px;
+  background: #252527;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.sugestao-btn {
+  background: var(--orange);
+  color: #111;
+  border: none;
+  border-radius: 7px;
+  padding: 5px 14px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.sugestao-btn:hover  { background: #ffb833; }
+.sugestao-btn:active { transform: scale(0.97); }
+
+.sugestao-fechar {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+  line-height: 1;
+}
+
+.sugestao-fechar:hover { color: var(--text); }
+
 /* ─── LISTA DE TIMES DISPONÍVEIS ───────────────────────────────────────────── */
 .lista-times {
   margin-top: 8px;

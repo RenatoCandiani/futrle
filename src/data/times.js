@@ -9,6 +9,9 @@
 //   fundacao → ano de fundação (number) — dica com seta ⬆️/⬇️ no jogo
 //   cores    → cores predominantes do clube
 //   escudo   → URL da imagem do escudo
+//   apelidos → (OPCIONAL) array de nomes alternativos aceitos como chute
+//              Ex: ["Oeste", "Osasco"]. O jogo já ignora acento, caixa e
+//              pontuação, então só adicione apelidos realmente diferentes.
 
 const WK  = 'https://upload.wikimedia.org/wikipedia/commons';
 const WKE = 'https://upload.wikimedia.org/wikipedia/en';
@@ -43,6 +46,16 @@ import escRioBrancoSP      from '../img/sudeste/rioBranco.png';
 import escSaoCristovao     from '../img/sudeste/saoCristovao.png';
 import escSaoJoaoDaBarra   from '../img/sudeste/saoJoaoDaBarra.png';
 import escSerranoRJ        from '../img/sudeste/serrano.png';
+import escAmericaMG        from '../img/sudeste/americamg.png';
+import escAmericano        from '../img/sudeste/americanorj.png';
+// Região Sul (lote 2):
+import escYpirangaRS       from '../img/sul/ypiranga.png';
+// Região Nordeste:
+import escConfianca        from '../img/nordeste/confiancase.png';
+// Região Norte:
+import escHumaita          from '../img/norte/humaitaac.png';
+// Região Centro-Oeste:
+import escOperarioMT       from '../img/centroOeste/operariomt.png';
 
 // Array em ordem alfabética. Mantenha a ordem ao adicionar times.
 export const TIMES = [
@@ -89,7 +102,7 @@ export const TIMES = [
   {
     nome: "América-MG", estado: "MG", regiao: "Sudeste", fundacao: 1912,
     cores: ["Verde", "Branco"],
-    escudo: `${WK}/6/6f/Escudo_oficial_do_Am%C3%A9rica_Futebol_Clube.svg`,
+    escudo: escAmericaMG,
   },
   {
     nome: "América-PE", estado: "PE", regiao: "Nordeste", fundacao: 1914,
@@ -114,7 +127,7 @@ export const TIMES = [
   {
     nome: "Americano", estado: "RJ", regiao: "Sudeste", fundacao: 1917,
     cores: ["Vermelho", "Branco"],
-    escudo: `${WKP}/d/db/AmericanoFC.png`,
+    escudo: escAmericano,
   },
   {
     nome: "Anapolina", estado: "GO", regiao: "Centro-Oeste", fundacao: 1945,
@@ -429,7 +442,7 @@ export const TIMES = [
   {
     nome: "Confiança", estado: "SE", regiao: "Nordeste", fundacao: 1936,
     cores: ["Azul", "Branco"],
-    escudo: `${WK}/d/dd/AD_Confian%C3%A7a_shield.png`,
+    escudo: escConfianca,
   },
   {
     nome: "Corinthians", estado: "SP", regiao: "Sudeste", fundacao: 1910,
@@ -683,8 +696,8 @@ export const TIMES = [
   },
   {
     nome: "Humaitá", estado: "AC", regiao: "Norte", fundacao: 1990,
-    cores: ["Azul", "Branco"],
-    escudo: `${WKP}/4/4b/Humait%C3%A1_Esporte_Clube.svg`,
+    cores: ["Verde", "Vermelho", "Branco"],
+    escudo: escHumaita,
   },
   {
     nome: "Icasa", estado: "CE", regiao: "Nordeste", fundacao: 1963,
@@ -1014,7 +1027,7 @@ export const TIMES = [
   {
     nome: "Operário-MT", estado: "MT", regiao: "Centro-Oeste", fundacao: 1949,
     cores: ["Verde", "Vermelho", "Branco"],
-    escudo: `${WK}/2/2a/Oper%C3%A1rio_Varzea-grandense.png`,
+    escudo: escOperarioMT,
   },
   {
     nome: "Operário-PR", estado: "PR", regiao: "Sul", fundacao: 1912,
@@ -1030,6 +1043,7 @@ export const TIMES = [
     nome: "Osasco Sporting (Oeste)", estado: "SP", regiao: "Sudeste", fundacao: 1921,
     cores: ["Vermelho", "Preto", "Branco"],
     escudo: escOeste,
+    apelidos: ["Oeste", "Osasco", "Osasco Sporting"],
   },
   {
     nome: "Palmas", estado: "TO", regiao: "Norte", fundacao: 1997,
@@ -1488,7 +1502,7 @@ export const TIMES = [
   },
   {
     nome: "Ypiranga-RS", estado: "RS", regiao: "Sul", fundacao: 1924,
-    cores: ["Azul", "Branco"],
-    escudo: `${WK}/e/e2/Ypiranga_FC_%28Erechim%29_%28Logo%29.png`,
+    cores: ["Verde", "Amarelo", "Vermelho"],
+    escudo: escYpirangaRS,
   },
 ];
