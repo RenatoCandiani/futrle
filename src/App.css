@@ -304,6 +304,12 @@ body {
   object-fit: contain;
   transition: opacity 0.4s ease;
   will-change: filter, opacity;
+  /* Anti-cola: não deixa selecionar/arrastar o escudo borrado */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none; /* iOS: desativa o menu de "salvar imagem" */
+  pointer-events: none;        /* o clique passa reto, nada de menu na imagem */
 }
 
 .escudo-img.loaded {

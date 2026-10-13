@@ -289,6 +289,7 @@ export default function App() {
         emojiMap[c.statusFundacao] +
         emojiMap[c.statusCores]    + '\n';
     });
+    mapa += '\nJogue em: https://renatocandiani.github.io/projetos/futrle/';
     navigator.clipboard.writeText(mapa).then(() => showToast('Copiado! 📋', 'sucesso'));
   };
 
@@ -453,7 +454,10 @@ export default function App() {
         {/* ─── ABA: JOGO ─── */}
         {!verLista && (<>
         {/* ESCUDO */}
-        <div className="escudo-box">
+        <div
+          className="escudo-box"
+          onContextMenu={(e) => { if (!jogoFinalizado) e.preventDefault(); }}
+        >
           {imgErro ? (
             /* Fallback: escudo não carregou — mostra iniciais do time */
             <div
@@ -478,6 +482,7 @@ export default function App() {
                 venceu        ? 'vitoria-anim': '',
               ].join(' ').trim()}
               style={{ filter: `blur(${blurAtual}px)`, opacity: imgCarregada ? 1 : 0 }}
+              draggable={false}
               onLoad={() => setImgCarregada(true)}
               onError={() => setImgErro(true)}
             />
