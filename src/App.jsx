@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { TIMES } from './data/times';
+import LogoFutrle from './LogoFutrle';
 import './App.css';
 
 // ─── CONSTANTES ───────────────────────────────────────────────────────────────
@@ -399,6 +400,7 @@ export default function App() {
 
         {/* HEADER */}
         <header className="game-header">
+          <LogoFutrle size={76} />
           <h1 className="game-title">FUTRLE <span className="title-br">BR</span></h1>
 
           {/* STREAK */}

@@ -247,8 +247,14 @@ body {
   margin-bottom: 20px;
 }
 
+.logo-futrle {
+  display: block;
+  margin: 0 auto 6px;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+}
+
 .game-title {
-  font-size: 38px;
+  font-size: 32px;
   font-weight: 900;
   letter-spacing: 8px;
   color: var(--text);
