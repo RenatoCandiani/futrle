@@ -140,7 +140,11 @@ export default function App() {
   const [streak,          setStreak]          = useState(() => Number(localStorage.getItem(LS_STREAK)  || 0));
   const [maxStreak,       setMaxStreak]       = useState(() => Number(localStorage.getItem(LS_MAX_STREAK) || 0));
   const [jogados,         setJogados]         = useState(() => Number(localStorage.getItem(LS_JOGADOS) || 0));
-  const [verLista,        setVerLista]        = useState(false);  // aba "Times disponíveis"
+  const [aba,             setAba]             = useState('jogo'); // 'jogo' | 'times' | 'sugerir'
+  const [sugInput,        setSugInput]        = useState('');     // texto da sugestão de time
+  const [sugResultado,    setSugResultado]    = useState(null);   // { tipo, nome } do feedback
+  const [sugEnviando,     setSugEnviando]     = useState(false);  // enviando pro backend
+  const [sugEnviado,      setSugEnviado]      = useState(false);  // sugestão enviada com sucesso
 
   const toastTimer  = useRef(null);
 
@@ -293,6 +297,52 @@ export default function App() {
     navigator.clipboard.writeText(mapa).then(() => showToast('Copiado! 📋', 'sucesso'));
   };
 
+  // ── Sugerir time ───────────────────────────────────────────────────────────
+  // Fase 1 (sem backend): só verifica se o time já está na base e dá o feedback.
+  // Fase 2 (Cloudflare): aqui vamos PERSISTIR a sugestão num banco.
+  const verificarSugestao = () => {
+    setSugEnviado(false);
+    const texto = sugInput.trim();
+    if (!texto) {
+      setSugResultado({ tipo: 'vazio' });
+      return;
+    }
+    const r = buscarTime(texto);
+    if (r.tipo === 'exato') {
+      setSugResultado({ tipo: 'existe', nome: r.time.nome, estado: r.time.estado });
+    } else if (r.tipo === 'sugestao') {
+      // Parecido com um time existente — mas pode ser um HOMÔNIMO diferente
+      // (ex.: "Flamengo-SP" de Guarulhos ≠ "Flamengo" do RJ). Não afirmamos que
+      // é o mesmo: mostramos qual já existe e deixamos a sugestão em aberto.
+      setSugResultado({ tipo: 'parecido', nome: r.time.nome, estado: r.time.estado, digitado: texto });
+    } else {
+      setSugResultado({ tipo: 'novo', nome: texto });
+    }
+  };
+
+  // ── Enviar sugestão pro backend (Cloudflare Function + D1) ─────────────────
+  const enviarSugestao = async (nome) => {
+    setSugEnviando(true);
+    try {
+      const resp = await fetch('/api/sugestoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome }),
+      });
+      const dados = await resp.json().catch(() => ({}));
+      if (resp.ok && dados.ok) {
+        setSugEnviado(true);
+        showToast('Sugestão enviada! Valeu 🙌', 'sucesso');
+      } else {
+        showToast(dados.erro || 'Não foi possível enviar. Tente mais tarde.');
+      }
+    } catch {
+      showToast('Sem conexão com o servidor. Tente mais tarde.');
+    } finally {
+      setSugEnviando(false);
+    }
+  };
+
   // ── Blur dinâmico ──────────────────────────────────────────────────────────
   // 0 erros → 20px | 1 → 16px | 2 → 12px | 3 → 8px | 4 (última tent.) → 4px
   // O 0px só acontece ao finalizar o jogo (acerto ou derrota).
@@ -345,7 +395,7 @@ export default function App() {
         </div>
       )}
 
-      <div className={`game-container${verLista ? ' game-container--lista' : ''}`}>
+      <div className={`game-container${aba === 'times' ? ' game-container--lista' : ''}`}>
 
         {/* HEADER */}
         <header className="game-header">
@@ -371,21 +421,27 @@ export default function App() {
           {/* ABAS: Jogo | Times disponíveis */}
           <div className="abas">
             <button
-              className={`aba${!verLista ? ' aba--ativa' : ''}`}
-              onClick={() => setVerLista(false)}
+              className={`aba${aba === 'jogo' ? ' aba--ativa' : ''}`}
+              onClick={() => setAba('jogo')}
             >
               ⚽ Jogo
             </button>
             <button
-              className={`aba${verLista ? ' aba--ativa' : ''}`}
-              onClick={() => setVerLista(true)}
+              className={`aba${aba === 'times' ? ' aba--ativa' : ''}`}
+              onClick={() => setAba('times')}
             >
               📋 Times ({TIMES.length})
+            </button>
+            <button
+              className={`aba${aba === 'sugerir' ? ' aba--ativa' : ''}`}
+              onClick={() => setAba('sugerir')}
+            >
+              💡 Sugerir
             </button>
           </div>
 
           {/* SELETOR DE MODO (só na aba Jogo) */}
-          {!verLista && (
+          {aba === 'jogo' && (
             <div className="modo-seletor">
               <button
                 className={`modo-btn${modo === 'diario' ? ' modo-btn--ativo' : ''}`}
@@ -406,7 +462,7 @@ export default function App() {
         </header>
 
         {/* ─── ABA: TIMES DISPONÍVEIS ─── */}
-        {verLista && (
+        {aba === 'times' && (
           <div className="lista-times">
             <p className="lista-intro">
               {TIMES.length} times no jogo, por região e estado.
@@ -451,8 +507,80 @@ export default function App() {
           </div>
         )}
 
+        {/* ─── ABA: SUGERIR TIME ─── */}
+        {aba === 'sugerir' && (
+          <div className="sugerir">
+            <p className="sugerir-intro">
+              Faltou algum clube? Digite o nome e veja se ele já está no jogo.
+            </p>
+            <div className="sugerir-form">
+              <input
+                type="text"
+                className="input-time"
+                value={sugInput}
+                onChange={(e) => { setSugInput(e.target.value); setSugResultado(null); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') verificarSugestao(); }}
+                placeholder="Nome do time..."
+                autoComplete="off"
+              />
+              <button className="btn-chutar" onClick={verificarSugestao}>
+                VERIFICAR
+              </button>
+            </div>
+
+            {sugResultado && (
+              <div className={`sugerir-feedback sugerir-feedback--${sugResultado.tipo}`}>
+                {sugResultado.tipo === 'vazio' && 'Digite o nome de um time primeiro.'}
+                {sugResultado.tipo === 'existe' && (
+                  <>✅ <strong>{sugResultado.nome}</strong> ({sugResultado.estado}) já está no jogo!</>
+                )}
+                {sugResultado.tipo === 'parecido' && (
+                  sugEnviado ? (
+                    <>🙌 Valeu! <strong>{sugResultado.digitado}</strong> foi enviado como clube diferente.</>
+                  ) : (
+                    <>
+                      🤔 Já temos o <strong>{sugResultado.nome}</strong> ({sugResultado.estado}).
+                      <br />
+                      Se o seu <strong>{sugResultado.digitado}</strong> for outro clube:
+                      <br />
+                      <button
+                        className="sugerir-enviar"
+                        onClick={() => enviarSugestao(sugResultado.digitado)}
+                        disabled={sugEnviando}
+                      >
+                        {sugEnviando ? 'Enviando…' : '📨 É outro clube, enviar'}
+                      </button>
+                    </>
+                  )
+                )}
+                {sugResultado.tipo === 'novo' && (
+                  sugEnviado ? (
+                    <>🙌 Valeu! <strong>{sugResultado.nome}</strong> foi enviado pra fila de novos times.</>
+                  ) : (
+                    <>
+                      📩 <strong>{sugResultado.nome}</strong> ainda não está no jogo.
+                      <br />
+                      <button
+                        className="sugerir-enviar"
+                        onClick={() => enviarSugestao(sugResultado.nome)}
+                        disabled={sugEnviando}
+                      >
+                        {sugEnviando ? 'Enviando…' : '📨 Enviar sugestão'}
+                      </button>
+                    </>
+                  )
+                )}
+              </div>
+            )}
+
+            <p className="sugerir-nota">
+              Sua sugestão entra numa fila para novos times. Nem todo clube tem escudo disponível, mas toda sugestão é bem-vinda! ⚽
+            </p>
+          </div>
+        )}
+
         {/* ─── ABA: JOGO ─── */}
-        {!verLista && (<>
+        {aba === 'jogo' && (<>
         {/* ESCUDO */}
         <div
           className="escudo-box"
@@ -599,7 +727,7 @@ export default function App() {
       </div>
 
       {/* AÇÕES AO FINALIZAR */}
-      {!verLista && jogoFinalizado && (
+      {aba === 'jogo' && jogoFinalizado && (
         <div className="footer-actions">
           {modo === 'treino' ? (
             <button className="btn-compartilhar" onClick={novoTreino}>

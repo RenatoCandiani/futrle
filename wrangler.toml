@@ -1,0 +1,15 @@
+# Configuração do Cloudflare para o Futrle (Pages + D1).
+# O binding "DB" conecta as Pages Functions ao banco D1 das sugestões.
+#
+# IMPORTANTE: o database_id abaixo é preenchido DEPOIS de criar o banco
+# (o painel/CLI mostra o id ao criar). Enquanto estiver "COLE_O_ID_AQUI",
+# o binding só vale localmente — em produção, o binding é feito pelo painel
+# (Settings → Functions → D1 database bindings), que é o caminho que vamos usar.
+
+name = "futrle"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "futrle-sugestoes"
+database_id = "87684f4b-f71a-4a85-bd5d-05b0371f09cf"

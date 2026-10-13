@@ -19,3 +19,7 @@ Thumbs.db
 
 # IDE
 .vscode/
+
+# Cloudflare / Wrangler (estado local, não versionar)
+.wrangler/
+.dev.vars

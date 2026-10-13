@@ -654,6 +654,67 @@ body {
 
 .sugestao-fechar:hover { color: var(--text); }
 
+/* ─── ABA SUGERIR ──────────────────────────────────────────────────────────── */
+.sugerir {
+  margin-top: 8px;
+}
+
+.sugerir-intro {
+  text-align: center;
+  color: var(--text);
+  font-size: 15px;
+  margin: 4px 0 18px;
+}
+
+.sugerir-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sugerir-feedback {
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+  background: #252527;
+  border: 1px solid var(--border);
+  color: var(--text);
+  animation: toastIn 0.2s ease-out;
+}
+
+.sugerir-feedback strong { color: var(--orange); }
+
+.sugerir-feedback--existe   { border-color: var(--green);  }
+.sugerir-feedback--parecido { border-color: var(--yellow); }
+.sugerir-feedback--novo     { border-color: var(--orange); }
+
+.sugerir-enviar {
+  margin-top: 10px;
+  padding: 9px 20px;
+  background: var(--orange);
+  color: #111;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.sugerir-enviar:hover:not(:disabled)  { background: #ffb833; }
+.sugerir-enviar:active:not(:disabled) { transform: scale(0.97); }
+.sugerir-enviar:disabled { opacity: 0.6; cursor: default; }
+
+.sugerir-nota {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.5;
+}
+
 /* ─── LISTA DE TIMES DISPONÍVEIS ───────────────────────────────────────────── */
 .lista-times {
   margin-top: 8px;
