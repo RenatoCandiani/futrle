@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import QRCode from 'qrcode';
 import { TIMES } from './data/times';
 import LogoFutrle from './LogoFutrle';
 import './App.css';
@@ -9,6 +10,12 @@ const MAX_TENTATIVAS = 5;
 const LS_STREAK      = 'futrle_streak';
 const LS_MAX_STREAK  = 'futrle_max_streak';
 const LS_JOGADOS     = 'futrle_jogados';
+
+// Chave PIX (aleatória) para o botão "Apoie o projeto".
+const PIX_CHAVE = 'e4372dbf-45d2-4872-85da-ba4debc9c582';
+// PIX Copia e Cola (BR Code) — validado no app do banco (destinatário: Renato Candiani).
+// Gerado a partir da chave acima + nome + cidade, com CRC16 calculado.
+const PIX_BRCODE = '00020126580014br.gov.bcb.pix0136e4372dbf-45d2-4872-85da-ba4debc9c5825204000053039865802BR5915RENATO CANDIANI6009SAO PAULO62070503***630496C0';
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -146,6 +153,8 @@ export default function App() {
   const [sugResultado,    setSugResultado]    = useState(null);   // { tipo, nome } do feedback
   const [sugEnviando,     setSugEnviando]     = useState(false);  // enviando pro backend
   const [sugEnviado,      setSugEnviado]      = useState(false);  // sugestão enviada com sucesso
+  const [modalPix,        setModalPix]        = useState(false);  // modal "Apoie o projeto"
+  const [qrPix,           setQrPix]           = useState('');     // dataURL do QR Code do PIX
 
   const toastTimer  = useRef(null);
 
@@ -343,6 +352,22 @@ export default function App() {
       setSugEnviando(false);
     }
   };
+
+  // ── Copiar PIX Copia e Cola (BR Code) ──────────────────────────────────────
+  const copiarPix = () => {
+    navigator.clipboard.writeText(PIX_BRCODE)
+      .then(() => showToast('PIX copiado! Cole no app do banco 🙌', 'sucesso'))
+      .catch(() => showToast('Não consegui copiar — selecione o código manualmente.'));
+  };
+
+  // ── Gera o QR Code do PIX quando o modal abre ──────────────────────────────
+  useEffect(() => {
+    if (modalPix && !qrPix) {
+      QRCode.toDataURL(PIX_BRCODE, { width: 220, margin: 1 })
+        .then(setQrPix)
+        .catch(() => {}); // se falhar, o modal ainda tem o copia-e-cola
+    }
+  }, [modalPix, qrPix]);
 
   // ── Blur dinâmico ──────────────────────────────────────────────────────────
   // 0 erros → 20px | 1 → 16px | 2 → 12px | 3 → 8px | 4 (última tent.) → 4px
@@ -740,6 +765,56 @@ export default function App() {
               Compartilhar Resultado 📲
             </button>
           )}
+          {/* Apoio em destaque no fim do jogo — momento de maior engajamento */}
+          <button className="btn-apoiar-destaque" onClick={() => setModalPix(true)}>
+            {venceu ? '☕ Curtiu? Me paga um café!' : '☕ Quase! Me paga um café vai 😅'}
+          </button>
+        </div>
+      )}
+
+      {/* RODAPÉ: apoie o projeto (sempre acessível) */}
+      <footer className="rodape">
+        <button className="btn-apoiar" onClick={() => setModalPix(true)}>
+          ☕ Apoie o projeto
+        </button>
+      </footer>
+
+      {/* MODAL PIX */}
+      {modalPix && (
+        <div className="modal-overlay" onClick={() => setModalPix(false)}>
+          <div className="modal-pix" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="modal-fechar"
+              onClick={() => setModalPix(false)}
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
+            <h2 className="modal-titulo">☕ Apoie o Futrle</h2>
+            <p className="modal-texto">
+              O Futrle é gratuito e feito por um torcedor só. Se curtiu, me paga um café via PIX — ajuda a manter o projeto no ar! ⚽
+            </p>
+
+            {/* QR Code pra escanear */}
+            {qrPix && (
+              <div className="modal-qr">
+                <img src={qrPix} alt="QR Code do PIX" width="200" height="200" />
+                <span className="modal-qr-legenda">Escaneie com o app do banco</span>
+              </div>
+            )}
+
+            {/* PIX Copia e Cola */}
+            <button className="btn-copiar-pix" onClick={copiarPix}>
+              📋 Copiar código PIX (Copia e Cola)
+            </button>
+
+            {/* Chave simples, como alternativa */}
+            <details className="modal-chave-alt">
+              <summary>ou use a chave PIX</summary>
+              <code className="modal-pix-codigo">{PIX_CHAVE}</code>
+            </details>
+            <p className="modal-recebedor">Recebedor: Renato Candiani</p>
+          </div>
         </div>
       )}
     </div>
