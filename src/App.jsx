@@ -10,6 +10,10 @@ const MAX_TENTATIVAS = 5;
 const LS_STREAK      = 'futrle_streak';
 const LS_MAX_STREAK  = 'futrle_max_streak';
 const LS_JOGADOS     = 'futrle_jogados';
+const LS_DIARIO      = 'futrle_diario';   // partida do dia em andamento/terminada
+
+// Endereço oficial do jogo (Cloudflare Pages), usado no texto de compartilhar.
+const SITE_URL = 'https://futrle.pages.dev/';
 
 // Chave PIX (aleatória) para o botão "Apoie o projeto".
 const PIX_CHAVE = 'e4372dbf-45d2-4872-85da-ba4debc9c582';
@@ -30,10 +34,85 @@ function getTimeDoDia() {
 }
 
 /**
+ * Número do desafio diário (igual o "Wordle #123").
+ * 17/10/2026 é o desafio #1; cada dia seguinte soma 1.
+ * Usa a data local, a mesma que escolhe o time do dia.
+ */
+const INICIO_DESAFIOS = new Date(2026, 9, 17); // mês começa em 0: 9 = outubro
+function numeroDesafio() {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  // Math.round evita erro de 1 dia em fuso com horário de verão.
+  return Math.round((hoje - INICIO_DESAFIOS) / 86400000) + 1;
+}
+
+/**
  * Sorteia um time aleatório (modo treino).
  */
 function getTimeAleatorio() {
   return TIMES[Math.floor(Math.random() * TIMES.length)];
+}
+
+/**
+ * Compara um chute com o time alvo e devolve o chute com o status de cada coluna.
+ */
+function avaliarChute(timeChutado, alvo) {
+  return {
+    ...timeChutado,
+    statusNome:   timeChutado.nome   === alvo.nome   ? 'correct' : 'wrong',
+    statusEstado: timeChutado.estado === alvo.estado ? 'correct' : 'wrong',
+    statusRegiao: timeChutado.regiao === alvo.regiao ? 'correct' : 'wrong',
+    statusCores:  compararCores(timeChutado.cores, alvo.cores),
+    // Fundação: 'correct' se mesmo ano; senão 'wrong' com dica de direção.
+    // dicaFundacao: 'mais-velho' = o time do dia foi fundado ANTES (⬆️ procure mais antigo)
+    //               'mais-novo'  = o time do dia foi fundado DEPOIS (⬇️ procure mais novo)
+    statusFundacao: timeChutado.fundacao === alvo.fundacao ? 'correct' : 'wrong',
+    dicaFundacao:
+      timeChutado.fundacao === alvo.fundacao
+        ? null
+        : alvo.fundacao < timeChutado.fundacao
+          ? 'mais-velho'
+          : 'mais-novo',
+  };
+}
+
+// ─── PARTIDA DO DIA SALVA NO NAVEGADOR ────────────────────────────────────────
+// Guarda só a data e os NOMES chutados. Ao abrir de novo no mesmo dia, refaz a
+// avaliação a partir dos nomes. Em outro dia, a partida salva é ignorada.
+
+function dataHoje() {
+  const d = new Date();
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mes}-${dia}`;
+}
+
+function salvarDiario(chutes) {
+  try {
+    localStorage.setItem(LS_DIARIO, JSON.stringify({
+      data: dataHoje(),
+      nomes: chutes.map(c => c.nome),
+    }));
+  } catch {
+    // navegador sem localStorage (modo privado restrito): segue sem salvar
+  }
+}
+
+/** Devolve { chutes, venceu, finalizado } da partida de hoje, ou null. */
+function carregarDiario() {
+  try {
+    const salvo = JSON.parse(localStorage.getItem(LS_DIARIO));
+    if (!salvo || salvo.data !== dataHoje() || !Array.isArray(salvo.nomes)) return null;
+    const alvo = getTimeDoDia();
+    const chutes = salvo.nomes
+      .map(nome => TIMES.find(t => t.nome === nome))
+      .filter(Boolean)
+      .map(t => avaliarChute(t, alvo));
+    const venceu = chutes.some(c => c.nome === alvo.nome);
+    return { chutes, venceu, finalizado: venceu || chutes.length >= MAX_TENTATIVAS };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -136,10 +215,13 @@ export default function App() {
   // O alvo atual depende do modo
   const timeDoDia = modo === 'diario' ? getTimeDoDia() : timeTreino;
 
-  const [chutes,          setChutes]          = useState([]);
+  // Partida do dia salva (lida uma vez, na abertura; o jogo abre no modo diário).
+  const [diarioSalvo] = useState(carregarDiario);
+
+  const [chutes,          setChutes]          = useState(() => diarioSalvo?.chutes ?? []);
   const [input,           setInput]           = useState('');
-  const [jogoFinalizado,  setJogoFinalizado]  = useState(false);
-  const [venceu,          setVenceu]          = useState(false);
+  const [jogoFinalizado,  setJogoFinalizado]  = useState(() => diarioSalvo?.finalizado ?? false);
+  const [venceu,          setVenceu]          = useState(() => diarioSalvo?.venceu ?? false);
   const [imgCarregada,    setImgCarregada]    = useState(false);
   const [imgErro,         setImgErro]         = useState(false);  // fallback se escudo não carregar
   const [toast,           setToast]           = useState(null);   // { msg, tipo }
@@ -220,6 +302,15 @@ export default function App() {
     setModo(novoModo);
     if (novoModo === 'treino') setTimeTreino(getTimeAleatorio());
     reiniciarPartida();
+    // Voltando pro diário: recupera a partida de hoje, se já tinha começado.
+    if (novoModo === 'diario') {
+      const salvo = carregarDiario();
+      if (salvo) {
+        setChutes(salvo.chutes);
+        setJogoFinalizado(salvo.finalizado);
+        setVenceu(salvo.venceu);
+      }
+    }
   }, [modo, reiniciarPartida]);
 
   // ── Chutar ─────────────────────────────────────────────────────────────────
@@ -254,27 +345,13 @@ export default function App() {
       return;
     }
 
-    const resultado = {
-      ...timeChutado,
-      statusNome:   timeChutado.nome   === timeDoDia.nome   ? 'correct' : 'wrong',
-      statusEstado: timeChutado.estado === timeDoDia.estado ? 'correct' : 'wrong',
-      statusRegiao: timeChutado.regiao === timeDoDia.regiao ? 'correct' : 'wrong',
-      statusCores:  compararCores(timeChutado.cores, timeDoDia.cores),
-      // Fundação: 'correct' se mesmo ano; senão 'wrong' com dica de direção.
-      // dicaFundacao: 'mais-velho' = o time do dia foi fundado ANTES (⬆️ procure mais antigo)
-      //               'mais-novo'  = o time do dia foi fundado DEPOIS (⬇️ procure mais novo)
-      statusFundacao: timeChutado.fundacao === timeDoDia.fundacao ? 'correct' : 'wrong',
-      dicaFundacao:
-        timeChutado.fundacao === timeDoDia.fundacao
-          ? null
-          : timeDoDia.fundacao < timeChutado.fundacao
-            ? 'mais-velho'
-            : 'mais-novo',
-    };
+    const resultado = avaliarChute(timeChutado, timeDoDia);
 
     const novosChutes = [...chutes, resultado];
     setChutes(novosChutes);
     setInput('');
+    // Modo diário: salva a partida pra não dar pra recomeçar recarregando a página.
+    if (modo === 'diario') salvarDiario(novosChutes);
 
     const acertou = timeChutado.nome === timeDoDia.nome;
     if (acertou) {
@@ -294,7 +371,9 @@ export default function App() {
   // ── Compartilhar ───────────────────────────────────────────────────────────
   const compartilhar = () => {
     const emojiMap = { correct: '🟩', partial: '🟨', wrong: '⬛' };
-    let mapa = `Futrle BR 🇧🇷 — ${chutes.length}/${MAX_TENTATIVAS}\n\n`;
+    // Derrota aparece como "X/5" (igual o Wordle), pra não confundir com acerto na 5ª.
+    const placar = venceu ? chutes.length : 'X';
+    let mapa = `Futrle BR 🇧🇷 #${numeroDesafio()} — ${placar}/${MAX_TENTATIVAS}\n\n`;
     chutes.forEach(c => {
       mapa +=
         emojiMap[c.statusNome]     +
@@ -303,7 +382,7 @@ export default function App() {
         emojiMap[c.statusFundacao] +
         emojiMap[c.statusCores]    + '\n';
     });
-    mapa += '\nJogue em: https://renatocandiani.github.io/projetos/futrle/';
+    mapa += `\nJogue em: ${SITE_URL}`;
     navigator.clipboard.writeText(mapa).then(() => showToast('Copiado! 📋', 'sucesso'));
   };
 

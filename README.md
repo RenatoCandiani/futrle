@@ -54,6 +54,9 @@ Um jogo diário estilo Wordle para adivinhar clubes do futebol brasileiro pelo e
 - **Anti-cola** — durante o jogo, o escudo borrado bloqueia botão direito e arrastar, para dificultar ver o escudo sem o blur
 - **Identidade própria** — logo/brasão vintage do Futrle (escudo em SVG) no topo e no favicon
 - **Apoie o projeto** — botão de apoio via PIX no fim de cada partida (vitória ou derrota) e no rodapé; o modal mostra QR Code, PIX Copia e Cola e a chave aleatória
+- **Desafio numerado** — o compartilhamento mostra o número do desafio do dia (17/10/2026 é o #1), o placar (derrota aparece como X/5) e o link https://futrle.pages.dev/
+- **Partida do dia salva** — no modo diário, a partida fica salva no navegador; recarregar a página não deixa jogar de novo no mesmo dia
+- **Prévia do link** — imagem e descrição aparecem ao colar o link no Twitter, WhatsApp, Discord etc. (`public/og-image.jpg`, 1200×630)
 - **Entrada tolerante** — não precisa acertar o nome exato: ignora acentos e maiúsculas ("gremio" = "Grêmio"), aceita apelidos ("oeste" para "Osasco Sporting") e sugere "Você quis dizer?" quando há erro de digitação
 - **Responsivo** — funciona bem em mobile e desktop
 - **Dark mode** por padrão
